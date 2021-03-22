@@ -112,6 +112,7 @@ drush_add_challenge()
 
   if [[ "${DRUPAL_VERSION}" == "7" ]]; then
     drush ${DRUSH_ALIAS} en -y --uri=${DOMAIN} letsencrypt_challenge
+    drush ${DRUSH_ALIAS} cc drush
     drush ${DRUSH_ALIAS} letsencrypt-challenge-add -y --uri=${DOMAIN} "${TOKEN_VALUE}"
   elif [[ "${DRUPAL_VERSION}" == "8" ]]; then
     drush ${DRUSH_ALIAS} en -y --uri=${DOMAIN} letsencrypt_challenge
