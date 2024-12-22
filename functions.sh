@@ -54,7 +54,7 @@ slackpost()
     # https://learn.microsoft.com/en-us/microsoftteams/platform/webhooks-and-connectors/how-to/add-incoming-webhook?tabs=newteams%2Cjavascript
     escapedText=$(echo $TEXT | sed 's/"/\"/g' | sed "s/'/\'/g")
     json="{\"type\": \"message\", \"attachments\": [{\"contentType\": \"application/vnd.microsoft.card.adaptive\",\"contentUrl\": null,\"content\": {\"$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\",\"type\": \"AdaptiveCard\",\"version\": \"1.2\",\"body\": [{\"type\": \"TextBlock\",\"text\": \"$escapedText\"}]}}]}"
-    curl -s -d -H "Content-Type: application/json" "$json" "$TEAMS_WEBHOOK_URL" || logline "Failed to send message to Teams: ${USERNAME}: ${TEXT}"
+    curl -s -H "Content-Type: application/json" -d "$json" "$TEAMS_WEBHOOK_URL" || logline "Failed to send message to Teams: ${USERNAME}: ${TEXT}"
   else
     logline "No Slack/Teams: ${USERNAME}: ${TEXT}"
   fi
