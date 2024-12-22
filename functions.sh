@@ -17,9 +17,9 @@ TMP_DIR=/tmp/letsencrypt_drupal
 FILE_BASECONFIG=${TMP_DIR}/baseconfig
 
 # Detect core version
-DRUPAL_VERSION="12"
-if grep -q -r -i --include Drupal.php "const version" ${PROJECT_ROOT}; then DRUPAL_VERSION="8"; fi
-if grep -q -r -i --include bootstrap.inc "define('VERSION', '" ${PROJECT_ROOT}; then DRUPAL_VERSION="7"; fi
+DRUPAL_VERSION=""
+# if grep -q -r -i --include Drupal.php "const version" ${PROJECT_ROOT}; then DRUPAL_VERSION="8"; fi
+# if grep -q -r -i --include bootstrap.inc "define('VERSION', '" ${PROJECT_ROOT}; then DRUPAL_VERSION="7"; fi
 
 # Load all variables provided by the project.
 . ${FILE_CONFIG}
@@ -50,8 +50,13 @@ slackpost()
     escapedText=$(echo $TEXT | sed 's/"/\"/g' | sed "s/'/\'/g")
     json="{\"channel\": \"$SLACK_CHANNEL\", \"username\":\"$USERNAME\", \"icon_emoji\":\"ghost\", \"attachments\":[{\"color\":\"$COLOR\" , \"text\": \"$escapedText\"}]}"
     curl -s -d "payload=$json" "$SLACK_WEBHOOK_URL" || logline "Failed to send message to slack: ${USERNAME}: ${TEXT}"
+  elif [[ ! -z "$TEAMS_WEBHOOK_URL" ]]; then
+    # https://learn.microsoft.com/en-us/microsoftteams/platform/webhooks-and-connectors/how-to/add-incoming-webhook?tabs=newteams%2Cjavascript
+    escapedText=$(echo $TEXT | sed 's/"/\"/g' | sed "s/'/\'/g")
+    json "{\"type\": \"message\", \"attachments\": [{\"contentType\": \"application/vnd.microsoft.card.adaptive\",\"contentUrl\": null,\"content\": {\"$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\",\"type\": \"AdaptiveCard\",\"version\": \"1.2\",\"body\": [{\"type\": \"TextBlock\",\"text\": \"$escapedText\"}]}}]}"
+    curl -s -d -H "Content-Type: application/json" "$json" "$TEAMS_WEBHOOK_URL" || logline "Failed to send message to Teams: ${USERNAME}: ${TEXT}"
   else
-    logline "No Slack: ${USERNAME}: ${TEXT}"
+    logline "No Slack/Teams: ${USERNAME}: ${TEXT}"
   fi
 }
 
@@ -80,35 +85,35 @@ drush_set_challenge()
   DOMAIN="${3}"
   TOKEN_VALUE="${4}"
 
-  if [[ "${DRUPAL_VERSION}" == "7" ]]; then
-    echo "EXECUTING: drush8 ${DRUSH_ALIAS} en -y --uri=${DOMAIN} letsencrypt_challenge"
-    drush8 ${DRUSH_ALIAS} en -y --uri=${DOMAIN} letsencrypt_challenge
-    echo "EXECUTING: drush8 ${DRUSH_ALIAS} vset -y --uri=${DOMAIN} letsencrypt_challenge \"${TOKEN_VALUE}\""
-    echo "$TOKEN_VALUE" | drush8 ${DRUSH_ALIAS} vset -y --uri=${DOMAIN} letsencrypt_challenge -
-    echo "EXECUTING: drush8 ${DRUSH_ALIAS} vset -y --uri=${DOMAIN} letsencrypt_challenge.${DOMAIN} \"${TOKEN_VALUE}\""
-    echo "$TOKEN_VALUE" | drush8 ${DRUSH_ALIAS} vset -y --uri=${DOMAIN} letsencrypt_challenge.${DOMAIN} -
-  elif [[ "${DRUPAL_VERSION}" == "8" ]]; then
-    echo "EXECUTING: drush9 ${DRUSH_ALIAS} en -y --uri=${DOMAIN} letsencrypt_challenge"
-    drush9 ${DRUSH_ALIAS} en -y --uri=${DOMAIN} letsencrypt_challenge
-    echo "EXECUTING: drush9 ${DRUSH_ALIAS} sset -y --uri=${DOMAIN} letsencrypt_challenge.challenge \"${TOKEN_VALUE}\""
-    echo "$TOKEN_VALUE" | drush9 ${DRUSH_ALIAS} sset -y --uri=${DOMAIN} letsencrypt_challenge.challenge -
-    echo "EXECUTING: drush9 ${DRUSH_ALIAS} sset -y --uri=${DOMAIN} letsencrypt_challenge.challenge.${DOMAIN} \"${TOKEN_VALUE}\""
-    echo "$TOKEN_VALUE" | drush9 ${DRUSH_ALIAS} sset -y --uri=${DOMAIN} letsencrypt_challenge.challenge.${DOMAIN} -
-  elif [[ "${DRUPAL_VERSION}" == "9" ]]; then
-    echo "EXECUTING: drush9 ${DRUSH_ALIAS} en -y --uri=${DOMAIN} letsencrypt_challenge"
-    drush9 ${DRUSH_ALIAS} en -y --uri=${DOMAIN} letsencrypt_challenge
-    echo "EXECUTING: drush9 ${DRUSH_ALIAS} sset -y --uri=${DOMAIN} letsencrypt_challenge.challenge \"${TOKEN_VALUE}\""
-    echo "$TOKEN_VALUE" | drush9 ${DRUSH_ALIAS} sset -y --uri=${DOMAIN} letsencrypt_challenge.challenge -
-    echo "EXECUTING: drush9 ${DRUSH_ALIAS} sset -y --uri=${DOMAIN} letsencrypt_challenge.challenge.${DOMAIN} \"${TOKEN_VALUE}\""
-    echo "$TOKEN_VALUE" | drush9 ${DRUSH_ALIAS} sset -y --uri=${DOMAIN} letsencrypt_challenge.challenge.${DOMAIN} -
-  else
-    echo "EXECUTING: drush ${DRUSH_ALIAS} en -y --uri=${DOMAIN} letsencrypt_challenge"
-    drush ${DRUSH_ALIAS} en -y --uri=${DOMAIN} letsencrypt_challenge
-    echo "EXECUTING: drush ${DRUSH_ALIAS} sset -y --uri=${DOMAIN} letsencrypt_challenge.challenge \"${TOKEN_VALUE}\""
-    echo "$TOKEN_VALUE" | drush ${DRUSH_ALIAS} sset -y --uri=${DOMAIN} letsencrypt_challenge.challenge -
-    echo "EXECUTING: drush ${DRUSH_ALIAS} sset -y --uri=${DOMAIN} letsencrypt_challenge.challenge.${DOMAIN} \"${TOKEN_VALUE}\""
-    echo "$TOKEN_VALUE" | drush ${DRUSH_ALIAS} sset -y --uri=${DOMAIN} letsencrypt_challenge.challenge.${DOMAIN} -
-  fi
+  # if [[ "${DRUPAL_VERSION}" == "7" ]]; then
+  #   echo "EXECUTING: drush8 ${DRUSH_ALIAS} en -y --uri=${DOMAIN} letsencrypt_challenge"
+  #   drush8 ${DRUSH_ALIAS} en -y --uri=${DOMAIN} letsencrypt_challenge
+  #   echo "EXECUTING: drush8 ${DRUSH_ALIAS} vset -y --uri=${DOMAIN} letsencrypt_challenge \"${TOKEN_VALUE}\""
+  #   echo "$TOKEN_VALUE" | drush8 ${DRUSH_ALIAS} vset -y --uri=${DOMAIN} letsencrypt_challenge -
+  #   echo "EXECUTING: drush8 ${DRUSH_ALIAS} vset -y --uri=${DOMAIN} letsencrypt_challenge.${DOMAIN} \"${TOKEN_VALUE}\""
+  #   echo "$TOKEN_VALUE" | drush8 ${DRUSH_ALIAS} vset -y --uri=${DOMAIN} letsencrypt_challenge.${DOMAIN} -
+  # elif [[ "${DRUPAL_VERSION}" == "8" ]]; then
+  #   echo "EXECUTING: drush9 ${DRUSH_ALIAS} en -y --uri=${DOMAIN} letsencrypt_challenge"
+  #   drush9 ${DRUSH_ALIAS} en -y --uri=${DOMAIN} letsencrypt_challenge
+  #   echo "EXECUTING: drush9 ${DRUSH_ALIAS} sset -y --uri=${DOMAIN} letsencrypt_challenge.challenge \"${TOKEN_VALUE}\""
+  #   echo "$TOKEN_VALUE" | drush9 ${DRUSH_ALIAS} sset -y --uri=${DOMAIN} letsencrypt_challenge.challenge -
+  #   echo "EXECUTING: drush9 ${DRUSH_ALIAS} sset -y --uri=${DOMAIN} letsencrypt_challenge.challenge.${DOMAIN} \"${TOKEN_VALUE}\""
+  #   echo "$TOKEN_VALUE" | drush9 ${DRUSH_ALIAS} sset -y --uri=${DOMAIN} letsencrypt_challenge.challenge.${DOMAIN} -
+  # elif [[ "${DRUPAL_VERSION}" == "9" ]]; then
+  #   echo "EXECUTING: drush9 ${DRUSH_ALIAS} en -y --uri=${DOMAIN} letsencrypt_challenge"
+  #   drush9 ${DRUSH_ALIAS} en -y --uri=${DOMAIN} letsencrypt_challenge
+  #   echo "EXECUTING: drush9 ${DRUSH_ALIAS} sset -y --uri=${DOMAIN} letsencrypt_challenge.challenge \"${TOKEN_VALUE}\""
+  #   echo "$TOKEN_VALUE" | drush9 ${DRUSH_ALIAS} sset -y --uri=${DOMAIN} letsencrypt_challenge.challenge -
+  #   echo "EXECUTING: drush9 ${DRUSH_ALIAS} sset -y --uri=${DOMAIN} letsencrypt_challenge.challenge.${DOMAIN} \"${TOKEN_VALUE}\""
+  #   echo "$TOKEN_VALUE" | drush9 ${DRUSH_ALIAS} sset -y --uri=${DOMAIN} letsencrypt_challenge.challenge.${DOMAIN} -
+  # else
+  echo "EXECUTING: drush ${DRUSH_ALIAS} en -y --uri=${DOMAIN} letsencrypt_challenge"
+  drush ${DRUSH_ALIAS} en -y --uri=${DOMAIN} letsencrypt_challenge
+  echo "EXECUTING: drush ${DRUSH_ALIAS} sset -y --uri=${DOMAIN} letsencrypt_challenge.challenge \"${TOKEN_VALUE}\""
+  echo "$TOKEN_VALUE" | drush ${DRUSH_ALIAS} sset -y --uri=${DOMAIN} letsencrypt_challenge.challenge -
+  echo "EXECUTING: drush ${DRUSH_ALIAS} sset -y --uri=${DOMAIN} letsencrypt_challenge.challenge.${DOMAIN} \"${TOKEN_VALUE}\""
+  echo "$TOKEN_VALUE" | drush ${DRUSH_ALIAS} sset -y --uri=${DOMAIN} letsencrypt_challenge.challenge.${DOMAIN} -
+  # fi
 }
 
 drush_clean_challenge()
@@ -117,19 +122,19 @@ drush_clean_challenge()
   DRUPAL_VERSION="${2}"
   DOMAIN="${3}"
 
-  if [[ "${DRUPAL_VERSION}" == "7" ]]; then
-    echo "EXECUTING: drush8 ${DRUSH_ALIAS} dis -y --uri=${DOMAIN} letsencrypt_challenge"
-    drush8 ${DRUSH_ALIAS} dis -y --uri=${DOMAIN} letsencrypt_challenge
-    echo "EXECUTING: drush8 ${DRUSH_ALIAS} pmu -y --uri=${DOMAIN} letsencrypt_challenge"
-    drush8 ${DRUSH_ALIAS} pmu -y --uri=${DOMAIN} letsencrypt_challenge
-  elif [[ "${DRUPAL_VERSION}" == "8" ]]; then
-    echo "EXECUTING: drush9 ${DRUSH_ALIAS} pmu -y --uri=${DOMAIN} letsencrypt_challenge"
-    drush9 ${DRUSH_ALIAS} pmu -y --uri=${DOMAIN} letsencrypt_challenge
-  elif [[ "${DRUPAL_VERSION}" == "9" ]]; then
-    echo "EXECUTING: drush9 ${DRUSH_ALIAS} pmu -y --uri=${DOMAIN} letsencrypt_challenge"
-    drush9 ${DRUSH_ALIAS} pmu -y --uri=${DOMAIN} letsencrypt_challenge
-  else
-    echo "EXECUTING: drush ${DRUSH_ALIAS} pmu -y --uri=${DOMAIN} letsencrypt_challenge"
-    drush ${DRUSH_ALIAS} pmu -y --uri=${DOMAIN} letsencrypt_challenge
-  fi
+  # if [[ "${DRUPAL_VERSION}" == "7" ]]; then
+  #   echo "EXECUTING: drush8 ${DRUSH_ALIAS} dis -y --uri=${DOMAIN} letsencrypt_challenge"
+  #   drush8 ${DRUSH_ALIAS} dis -y --uri=${DOMAIN} letsencrypt_challenge
+  #   echo "EXECUTING: drush8 ${DRUSH_ALIAS} pmu -y --uri=${DOMAIN} letsencrypt_challenge"
+  #   drush8 ${DRUSH_ALIAS} pmu -y --uri=${DOMAIN} letsencrypt_challenge
+  # elif [[ "${DRUPAL_VERSION}" == "8" ]]; then
+  #   echo "EXECUTING: drush9 ${DRUSH_ALIAS} pmu -y --uri=${DOMAIN} letsencrypt_challenge"
+  #   drush9 ${DRUSH_ALIAS} pmu -y --uri=${DOMAIN} letsencrypt_challenge
+  # elif [[ "${DRUPAL_VERSION}" == "9" ]]; then
+  #   echo "EXECUTING: drush9 ${DRUSH_ALIAS} pmu -y --uri=${DOMAIN} letsencrypt_challenge"
+  #   drush9 ${DRUSH_ALIAS} pmu -y --uri=${DOMAIN} letsencrypt_challenge
+  # else
+  echo "EXECUTING: drush ${DRUSH_ALIAS} pmu -y --uri=${DOMAIN} letsencrypt_challenge"
+  drush ${DRUSH_ALIAS} pmu -y --uri=${DOMAIN} letsencrypt_challenge
+  # fi
 }

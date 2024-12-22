@@ -5,6 +5,8 @@
 SLACK_WEBHOOK_URL='https://hooks.slack.com/services/XXXXXXXXX/XXXXXXXXX/XXXXXXXXXXXXXXXXXXXXXXXX'
 SLACK_CHANNEL='CHANNEL-NAME'
 
+TEAMS_WEBHOOK_URL=''
+
 # UUID of target environment for cert deploy.
 # Easiest to get from URL in Acquia Cloud UI. See https://cloudapi-docs.acquia.com/#/Environments/getEnvironment
 # (Second uuid in URL when looking at specific environment.)
