@@ -1,9 +1,9 @@
 {
-    "name": "vagrant/acquia_cloud_cert_deployment",
+    "name": "undp/acquia_cloud_cert_deployment",
     "type": "project",
     "require": {
-        "nategood/commando": "^0.3.0",
-        "acquia/http-hmac-php": "^4.0",
-        "guzzlehttp/guzzle": "^6.3"
+        "nategood/commando": "*",
+        "acquia/http-hmac-php": "^6.1.1",
+        "guzzlehttp/guzzle": "^7.9.2"
     }
 }

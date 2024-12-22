@@ -31,7 +31,7 @@ self_update() {
     reslog=$(git log HEAD..origin/master --oneline)
     if [[ "${reslog}" != "" ]]; then
         echo "Found a new version of me, updating myself..."
-        slackpost "${PROJECT_ROOT}" "warning" "Morpht/letsencrypt_drupal on ${DRUSH_ALIAS}" "Found a new version of me, updating myself..."
+        slackpost "${PROJECT_ROOT}" "warning" "undp/letsencrypt_drupal on ${DRUSH_ALIAS}" "Found a new version of me, updating myself..."
 
         # Remove dehydrated library to make sure we get new version.
         rm -rf ${CURRENT_DIR}/dehydrated
@@ -57,7 +57,7 @@ self_update() {
     cd ${CURRENT_DIR} || exit
 
     echo "Already the latest version."
-    slackpost "${PROJECT_ROOT}" "good" "Morpht/letsencrypt_drupal on ${DRUSH_ALIAS}" "The script is already the latest version."
+    slackpost "${PROJECT_ROOT}" "good" "undp/letsencrypt_drupal on ${DRUSH_ALIAS}" "The script is already the latest version."
 }
 
 main() {
