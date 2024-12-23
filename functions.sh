@@ -52,8 +52,12 @@ slackpost()
     curl -s -d "payload=$json" "$SLACK_WEBHOOK_URL" || logline "Failed to send message to slack: ${USERNAME}: ${TEXT}"
   elif [[ ! -z "$TEAMS_WEBHOOK_URL" ]]; then
     # https://learn.microsoft.com/en-us/microsoftteams/platform/webhooks-and-connectors/how-to/add-incoming-webhook?tabs=newteams%2Cjavascript
+    # Can either be one of 'attention', 'good', 'warning' for AdaptiveCard: https://adaptivecards.io/explorer/TextBlock.html
+    if [[ "$COLOR" == "danger" ]]; then
+      COLOR="attention"
+    fi
     escapedText=$(echo $TEXT | sed 's/"/\"/g' | sed "s/'/\'/g")
-    json="{\"type\": \"message\", \"attachments\": [{\"contentType\": \"application/vnd.microsoft.card.adaptive\",\"contentUrl\": null,\"content\": {\"$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\",\"type\": \"AdaptiveCard\",\"version\": \"1.2\",\"body\": [{\"type\": \"TextBlock\",\"text\": \"$escapedText\"}]}}]}"
+    json="{\"type\": \"message\", \"attachments\": [{\"contentType\": \"application/vnd.microsoft.card.adaptive\",\"contentUrl\": null,\"content\": {\"$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\",\"type\": \"AdaptiveCard\",\"version\": \"1.2\",\"body\": [{\"type\": \"TextBlock\",\"text\": \"$escapedText\", \"color\":\"$COLOR\"}]}}]}"
     curl -s -H "Content-Type: application/json" -d "$json" "$TEAMS_WEBHOOK_URL" || logline "Failed to send message to Teams: ${USERNAME}: ${TEXT}"
   else
     logline "No Slack/Teams: ${USERNAME}: ${TEXT}"
