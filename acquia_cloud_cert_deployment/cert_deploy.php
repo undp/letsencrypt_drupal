@@ -85,7 +85,7 @@ $client = new Client([
 $base_url = 'https://cloud.acquia.com/api/';
 // Create label beforehand, so it can be used at multiple places.
 if ($label_prefix = $cmd['label-prefix']) {
-    $label = "{$label_prefix}_{$timestamp_formatted}";
+  $label = "{$label_prefix}_{$timestamp_formatted}";
 } else {
   $label = "cert_{$timestamp_formatted}";
 }
@@ -103,8 +103,8 @@ try {
     ],
   ]);
 } catch (ClientException $e) {
-    print $e->getMessage();
-    print_response_message($e->getResponse(), $cmd);
+  print $e->getMessage();
+  print_response_message($e->getResponse(), $cmd);
 }
 
 print_response_message($response->getBody(), $cmd);
@@ -123,8 +123,8 @@ if ($response->getStatusCode() == 202 && $cmd['activate']) {
           $api_method = "environments/{$environment_id}/ssl/certificates/{$cert_id}/actions/activate";
           $response = $client->request('POST', $base_url . $api_method, []);
         } catch (ClientException $e) {
-            print $e->getMessage();
-            print_response_message($e->getResponse(), $cmd);
+          print $e->getMessage();
+          print_response_message($e->getResponse(), $cmd);
         }
         print_response_message($response->getBody(), $cmd);
       }
@@ -135,7 +135,8 @@ if ($response->getStatusCode() == 202 && $cmd['activate']) {
 /**
  * Helper function, which extracts saved secrets from secrets.settings.php file.
  */
-function extract_secrets($cmd) {
+function extract_secrets($cmd)
+{
   // Load Acquia Cloud secrets file
   $secrets_file = sprintf('/mnt/files/%s.%s/secrets.settings.php', $_ENV['AH_SITE_GROUP'], $_ENV['AH_SITE_ENVIRONMENT']);
 
@@ -166,13 +167,14 @@ function extract_secrets($cmd) {
  *
  * @return array
  */
-function get_deployed_certificates($environment_id, $client, $base_url, $cmd) {
+function get_deployed_certificates($environment_id, $client, $base_url, $cmd)
+{
   // Request.
   try {
     $api_method = "environments/{$environment_id}/ssl/certificates";
     $response = $client->request('GET', $base_url . $api_method, []);
   } catch (ClientException $e) {
-        $cmd->error($e->getMessage());
+    $cmd->error($e->getMessage());
   }
 
   if ($deployed_certificates = json_decode($response->getBody(), TRUE)) {
@@ -190,8 +192,15 @@ function get_deployed_certificates($environment_id, $client, $base_url, $cmd) {
  * @param $response_body
  * @param $cmd
  */
-function print_response_message($response_body, $cmd) {
-  $response_body = json_decode($response_body, TRUE);
+function print_response_message($response_body, $cmd)
+{
+
+  try {
+    $response_body = json_decode($response_body, TRUE);
+  } catch (Exception $e) {
+    $cmd->error(new Exception('The response from Acquia Cloud API is not a valid JSON.'));
+    print $response_body . PHP_EOL;
+  }
 
   if (array_key_exists('error', $response_body)) {
     $cmd->error(new Exception($response_body['message']));
