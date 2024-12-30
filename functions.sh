@@ -57,7 +57,7 @@ slackpost()
       COLOR="attention"
     fi
     escapedText=$(echo $TEXT | sed 's/"/\"/g' | sed "s/'/\'/g")
-    json="{\"type\": \"message\", \"attachments\": [{\"contentType\": \"application/vnd.microsoft.card.adaptive\",\"contentUrl\": null,\"content\": {\"$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\",\"type\": \"AdaptiveCard\",\"version\": \"1.2\",\"body\": [{\"type\": \"TextBlock\",\"text\": \"$escapedText\", \"color\":\"$COLOR\"}]}}]}"
+    json="{\"type\": \"message\", \"attachments\": [{\"contentType\": \"application/vnd.microsoft.card.adaptive\",\"contentUrl\": null,\"content\": {\"$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\",\"type\": \"AdaptiveCard\",\"version\": \"1.2\",\"body\": [{\"type\": \"TextBlock\",\"text\": \"${ENVIRONMENT}\", \"size\": \"large\"}, {\"type\": \"TextBlock\",\"text\": \"$escapedText\", \"color\":\"$COLOR\", \"wrap\": true}]}}]}"
     curl -s -H "Content-Type: application/json" -d "$json" "$TEAMS_WEBHOOK_URL" || logline "Failed to send message to Teams: ${USERNAME}: ${TEXT}"
   else
     logline "No Slack/Teams: ${USERNAME}: ${TEXT}"

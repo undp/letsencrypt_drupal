@@ -31,7 +31,7 @@ self_update() {
     reslog=$(git log HEAD..origin/master --oneline)
     if [[ "${reslog}" != "" ]]; then
         echo "Found a new version of me, updating myself..."
-        slackpost "${PROJECT_ROOT}" "warning" "undp/letsencrypt_drupal on ${DRUSH_ALIAS}" "${PROJECT}.${ENVIRONMENT}: Found a new version of me, updating myself..."
+        slackpost "${PROJECT_ROOT}" "warning" "undp/letsencrypt_drupal on ${DRUSH_ALIAS}" "Found a new version of me, updating myself..."
 
         # Remove dehydrated library to make sure we get new version.
         rm -rf ${CURRENT_DIR}/dehydrated
@@ -57,7 +57,7 @@ self_update() {
     cd ${CURRENT_DIR} || exit
 
     echo "Already the latest version."
-    slackpost "${PROJECT_ROOT}" "good" "undp/letsencrypt_drupal on ${DRUSH_ALIAS}" "${PROJECT}.${ENVIRONMENT}: The script is already the latest version."
+    slackpost "${PROJECT_ROOT}" "good" "undp/letsencrypt_drupal on ${DRUSH_ALIAS}" "The script is already the latest version."
 }
 
 main() {
@@ -100,10 +100,10 @@ main() {
   if [ $? -eq 0 ]
   then
     # Send result to slack.
-    slackpost "${PROJECT_ROOT}" "good" "SSL bot ${DRUSH_ALIAS}" "${PROJECT}.${ENVIRONMENT}: SSL Dehydrated script success. \`\`\`${DEHYDRATED_RESULT}\`\`\`"
+    slackpost "${PROJECT_ROOT}" "good" "SSL bot ${DRUSH_ALIAS}" "SSL Dehydrated script success. \`\`\`${DEHYDRATED_RESULT}\`\`\`"
   else
     # Send result to slack.
-    slackpost "${PROJECT_ROOT}" "danger" "SSL bot ${DRUSH_ALIAS}" "${PROJECT}.${ENVIRONMENT}: *SSL Dehydrated script failure.* Manual review/fix required!  \`\`\`${DEHYDRATED_RESULT}\`\`\`"
+    slackpost "${PROJECT_ROOT}" "danger" "SSL bot ${DRUSH_ALIAS}" "*SSL Dehydrated script failure.* Manual review/fix required!  \`\`\`${DEHYDRATED_RESULT}\`\`\`"
   fi
   # Output for logging.
   echo "${DEHYDRATED_RESULT}"

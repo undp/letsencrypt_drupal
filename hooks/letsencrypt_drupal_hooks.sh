@@ -65,22 +65,22 @@ deploy_cert() {
     # - TIMESTAMP
     #   Timestamp when the specified certificate was created.
 
-    slackpost "${PROJECT_ROOT}" "good" "SSL bot ${DRUSH_ALIAS}" "${PROJECT}.${ENVIRONMENT}: Starting deployment of new certificate for ${DOMAIN}."
+    slackpost "${PROJECT_ROOT}" "good" "SSL bot ${DRUSH_ALIAS}" "Starting deployment of new certificate for ${DOMAIN}."
     # Should deployment be atempted?
     if [ -z ${CERT_DEPLOY_ENVIRONMENT_UUID+x} ]
       then
         # No deploy. Just notify Slack and ask for manual deploy.
-        slackpost "${PROJECT_ROOT}" "warning" "SSL bot ${DRUSH_ALIAS}" "${PROJECT}.${ENVIRONMENT}: *New certificate for ${DOMAIN} was generated.* This instance of morpht/letsencrypt_drupal *is not set up to deploy certificate* automatically. The certificate needs to be uploaded to Acquia manually*.\n\nSSH to \`drush ${DRUSH_ALIAS} ssh\` to read files.\nLogin to Acquia and open target environment. Open SSL tab on the left side. Click Install SSL certificate.\n\nText fields:\nSSL certificate: \`cat ${FULLCHAINFILE}\`\nSSL private key: \`cat ${KEYFILE}\`\nCA intermediate certificates: \`cat ${CHAINFILE}\`"
+        slackpost "${PROJECT_ROOT}" "warning" "SSL bot ${DRUSH_ALIAS}" "*New certificate for ${DOMAIN} was generated.* This instance of morpht/letsencrypt_drupal *is not set up to deploy certificate* automatically. The certificate needs to be uploaded to Acquia manually*.\n\nSSH to \`drush ${DRUSH_ALIAS} ssh\` to read files.\nLogin to Acquia and open target environment. Open SSL tab on the left side. Click Install SSL certificate.\n\nText fields:\nSSL certificate: \`cat ${FULLCHAINFILE}\`\nSSL private key: \`cat ${KEYFILE}\`\nCA intermediate certificates: \`cat ${CHAINFILE}\`"
       else
         # Run certificate deployment.
         RESULT=$(php $CURRENT_DIR/../acquia_cloud_cert_deployment/cert_deploy.php "${CERT_DEPLOY_ENVIRONMENT_UUID}" "${KEYFILE}" "${FULLCHAINFILE}" "${CHAINFILE}" "${TIMESTAMP}" --activate --label-prefix "letsencrypt_drupal" 2>&1)
         if [ $? -eq 0 ]
         then
           # Send successful result to slack.
-          slackpost "${PROJECT_ROOT}" "good" "SSL bot ${DRUSH_ALIAS}" "${PROJECT}.${ENVIRONMENT}: SSL certificate deployment successful. \`\`\`${RESULT}\`\`\`"
+          slackpost "${PROJECT_ROOT}" "good" "SSL bot ${DRUSH_ALIAS}" "SSL certificate deployment successful. \`\`\`${RESULT}\`\`\`"
         else
           # Send failure notification to slack.
-          slackpost "${PROJECT_ROOT}" "danger" "SSL bot ${DRUSH_ALIAS}" "${PROJECT}.${ENVIRONMENT}: *SSL certificate deployment failure.* Manual review/fix required! \`\`\`${RESULT}\`\`\`\n\nNew certificate for ${DOMAIN} *was generated and needs to be uploaded to Acquia manually*.\n\nSSH to \`drush ${DRUSH_ALIAS} ssh\` to read files.\nLogin to Acquia and open target environment. Open SSL tab on the left side. Click Install SSL certificate.\n\nText fields:\nSSL certificate: \`cat ${FULLCHAINFILE}\`\nSSL private key: \`cat ${KEYFILE}\`\nCA intermediate certificates: \`cat ${CHAINFILE}\`"
+          slackpost "${PROJECT_ROOT}" "danger" "SSL bot ${DRUSH_ALIAS}" "*SSL certificate deployment failure.* Manual review/fix required! \`\`\`${RESULT}\`\`\`\n\nNew certificate for ${DOMAIN} *was generated and needs to be uploaded to Acquia manually*.\n\nSSH to \`drush ${DRUSH_ALIAS} ssh\` to read files.\nLogin to Acquia and open target environment. Open SSL tab on the left side. Click Install SSL certificate.\n\nText fields:\nSSL certificate: \`cat ${FULLCHAINFILE}\`\nSSL private key: \`cat ${KEYFILE}\`\nCA intermediate certificates: \`cat ${CHAINFILE}\`"
         fi
         # Output for logging.
         echo "${RESULT}"
@@ -106,7 +106,7 @@ unchanged_cert() {
     # - CHAINFILE
     #   The path of the file containing the intermediate certificate(s).
 
-    slackpost "${PROJECT_ROOT}" "good" "SSL bot ${DRUSH_ALIAS}" "${PROJECT}.${ENVIRONMENT}: Certificate for ${DOMAIN} is still valid and therefore wasn't reissued. All good."
+    slackpost "${PROJECT_ROOT}" "good" "SSL bot ${DRUSH_ALIAS}" "Certificate for ${DOMAIN} is still valid and therefore wasn't reissued. All good."
 }
 
 invalid_challenge() {
@@ -122,7 +122,7 @@ invalid_challenge() {
     # - RESPONSE
     #   The response that the verification server returned
 
-    slackpost "${PROJECT_ROOT}" "danger" "SSL bot ${DRUSH_ALIAS}" "${PROJECT}.${ENVIRONMENT}: Invalid_challenge: Challenge response has failed for ${DOMAIN} with ${RESPONSE}. Manual fix required!"
+    slackpost "${PROJECT_ROOT}" "danger" "SSL bot ${DRUSH_ALIAS}" "Invalid_challenge: Challenge response has failed for ${DOMAIN} with ${RESPONSE}. Manual fix required!"
 }
 
 request_failure() {
@@ -141,21 +141,21 @@ request_failure() {
     # - REQTYPE
     #   The kind of request that was made (GET, POST...)
 
-    slackpost "${PROJECT_ROOT}" "danger" "SSL bot ${DRUSH_ALIAS}" "${PROJECT}.${ENVIRONMENT}: Request_failure: HTTP request has failed with status code: ${STATUSCODE} and reason: ${REASON}. Manual fix required!"
+    slackpost "${PROJECT_ROOT}" "danger" "SSL bot ${DRUSH_ALIAS}" "Request_failure: HTTP request has failed with status code: ${STATUSCODE} and reason: ${REASON}. Manual fix required!"
 }
 
 startup_hook() {
   # This hook is called before the cron command to do some initial tasks
   # (e.g. starting a webserver).
 
-  slackpost "${PROJECT_ROOT}" "good" "SSL bot ${DRUSH_ALIAS}" "${PROJECT}.${ENVIRONMENT}: SSL certificate check is starting..."
+  slackpost "${PROJECT_ROOT}" "good" "SSL bot ${DRUSH_ALIAS}" "SSL certificate check is starting..."
 }
 
 exit_hook() {
   # This hook is called at the end of the cron command and can be used to
   # do some final (cleanup or other) tasks.
 
-  slackpost "${PROJECT_ROOT}" "good" "SSL bot ${DRUSH_ALIAS}" "${PROJECT}.${ENVIRONMENT}: SSL certificate check finished."
+  slackpost "${PROJECT_ROOT}" "good" "SSL bot ${DRUSH_ALIAS}" "SSL certificate check finished."
 }
 
 HANDLER="$1"; shift
