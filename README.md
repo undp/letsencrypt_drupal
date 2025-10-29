@@ -2,7 +2,28 @@ Forked and adapted from https://github.com/morpht/letsencrypt_drupal
 
 # Let's Encrypt Drupal
 
-Wrapper script for https://github.com/dehydrated-io/dehydrated opinionated towards running in Drupal hosting environments and reporting to Slack. Slack is optional. Let's Encrypt challenge is published trough Drupal using Drush. There is no need to alter webserver settings or upload files.
+Wrapper script for https://github.com/dehydrated-io/dehydrated opinionated towards running in Drupal hosting environments and reporting to Slack. Slack is optional. 
+
+## Challenge Types
+
+This script automatically selects the appropriate challenge type based on the domains in your configuration:
+
+### http-01 (Automatic for Subdomains)
+Used automatically for subdomain certificates (e.g., `www.example.com`, `api.example.com`).
+* Let's Encrypt challenge is published through Drupal using Drush
+* Requires: https://www.drupal.org/project/letsencrypt_challenge module on target site
+* No web server configuration changes needed
+
+### dns-01 (Automatic for Apex/Wildcard Domains)
+Used automatically when your domains file contains:
+* **Apex domains**: `example.com`
+* **Wildcard domains**: `*.example.com`
+
+Let's Encrypt challenge is published via DNS TXT records on Azure DNS using REST API.
+* Requires: Azure DNS zone and Service Principal with DNS Zone Contributor permissions
+* Benefits: Supports wildcard certificates, no web server access needed, works behind firewalls
+
+**Challenge type is determined automatically** - the script analyzes your domains file and selects the appropriate validation method.
 
 ## What it does
 
@@ -31,11 +52,19 @@ Wrapper script for https://github.com/dehydrated-io/dehydrated opinionated towar
 
 ## Requirements
 
+### For http-01 challenge (default):
 * Environment where you can run bash script and setup cron.
 * Read access to project root. (accessing config files)
 * Permissions to run Drush commands with Drush alias against the site which is accessible via domains listed in `domains_site.env.txt` from internet.
 * `git` must available.
 * https://www.drupal.org/project/letsencrypt_challenge on target site.
+
+### Additional requirements for dns-01 challenge:
+* Azure DNS zone hosting your domain
+* Azure Service Principal with the following:
+  * Subscription ID, Tenant ID, Client ID, Client Secret
+  * DNS Zone Contributor role on the DNS Zone or Resource Group
+* Environment variables configured (see Azure DNS Configuration section below)
 
 ## Installation
 
@@ -74,7 +103,7 @@ These steps are for `prod` environment of PROJECT on Acquia Cloud. Can be easily
     * `secrets.settings.php`
       * Should *not* be committed in project repository.
       * Should be placed on Acquia server here: `/mnt/files/undp.01live/secrets.settings.php`
-  * Add https://www.drupal.org/project/letsencrypt_challenge module.
+  * Add https://www.drupal.org/project/letsencrypt_challenge module (for http-01 challenge, used with subdomain certificates).
     * `composer require drupal/letsencrypt_challenge`
   * Commit and deploy to production.
 * In Acquia UI add the Scheduled task
@@ -85,6 +114,60 @@ These steps are for `prod` environment of PROJECT on Acquia Cloud. Can be easily
   * New job:
     * Job name: `LE renew cert` (just a default, feel free change it)
     * Command: `/home/undp/letsencrypt_drupal/letsencrypt_drupal.sh undp 01live &>> /var/log/sites/${AH_SITE_NAME}/logs/$(hostname -s)/letsencrypt_drupal.log`
+    * Note: Challenge type (http-01 or dns-01) is automatically detected based on your domains file
     * Command frequency `0 7 * * 1` ( https://crontab.guru/#0_7_*_*_1 )
   * It's good idea to run the command on Acquia manually first time to check if all is OK.
 * First script run will post results/instructions to Slack/Teams.
+
+## Azure DNS Configuration (for dns-01 challenge)
+
+The script automatically uses dns-01 challenge when it detects apex domains (`example.com`) or wildcard domains (`*.example.com`) in your domains file. To enable this functionality, you need to configure Azure DNS:
+
+### 1. Create Azure Service Principal
+
+```bash
+# Login to Azure
+az login
+
+# Create a Service Principal
+az ad sp create-for-rbac --name "letsencrypt-dns-challenge" --role "DNS Zone Contributor" --scopes /subscriptions/{subscription-id}/resourceGroups/{resource-group}/providers/Microsoft.Network/dnszones/{zone-name}
+```
+
+This command will output:
+- `appId` (use as AZURE_CLIENT_ID)
+- `password` (use as AZURE_CLIENT_SECRET)
+- `tenant` (use as AZURE_TENANT_ID)
+
+### 2. Configure Environment Variables
+
+Add these to your config file (e.g., `config_undp.01live.sh`) or store them securely in a secrets file:
+
+```bash
+export AZURE_SUBSCRIPTION_ID="your-subscription-id"
+export AZURE_TENANT_ID="your-tenant-id"
+export AZURE_CLIENT_ID="your-client-id"
+export AZURE_CLIENT_SECRET="your-client-secret"
+export AZURE_RESOURCE_GROUP="your-resource-group"
+export AZURE_DNS_ZONE="example.com"
+```
+
+**Security Note**: Never commit these credentials to your repository. Store them in:
+- `/mnt/files/PROJECT.ENV/secrets.settings.php` on Acquia Cloud
+- Or use environment variables set in your hosting platform
+- Or source from a separate secrets file that is not version controlled
+
+### 3. Verify Permissions
+
+Ensure the Service Principal has "DNS Zone Contributor" role on your DNS Zone:
+
+```bash
+az role assignment list --assignee {client-id} --scope /subscriptions/{subscription-id}/resourceGroups/{resource-group}/providers/Microsoft.Network/dnszones/{zone-name}
+```
+
+### 4. Test the Configuration
+
+Run the script manually first to verify everything works:
+
+```bash
+./letsencrypt_drupal.sh projectname environment dns-01
+```
