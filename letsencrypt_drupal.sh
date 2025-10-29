@@ -2,16 +2,20 @@
 
 # Example call with logging:
 # ./letsencrypt_drupal.sh "projectname" "prod" &>> /var/log/sites/${AH_SITE_NAME}/logs/$(hostname -s)/letsencrypt_drupal.log
+# With dns-01 challenge:
+# ./letsencrypt_drupal.sh "projectname" "prod" "dns-01" &>> /var/log/sites/${AH_SITE_NAME}/logs/$(hostname -s)/letsencrypt_drupal.log
 
 # Params
 #-----------------------------------
 # * Project name
 # * Target environment
+# * Challenge type (optional, defaults to "http-01", can be "dns-01")
 
 
 # We need to export basic arguments so hooks/letsencrypt_drupal_hooks.sh can use them.
 export PROJECT="$1"
 export ENVIRONMENT="$2"
+export CHALLENGE_TYPE="${3:-http-01}"
 
 # Functions.sh adds some useful functions and propagates lots of variables.
 CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
@@ -85,12 +89,25 @@ main() {
   mkdir -p ${TMP_DIR}/wellknown
   mkdir -p ${CERT_DIR}
 
+  # Log the challenge type being used
+  logline "Using challenge type: ${CHALLENGE_TYPE}"
+
+  # Determine which hook to use based on challenge type
+  local HOOK_SCRIPT
+  if [ "$CHALLENGE_TYPE" = "dns-01" ]; then
+    HOOK_SCRIPT="${CURRENT_DIR}/hooks/azure_dns_hook.sh"
+    logline "Using Azure DNS hook for dns-01 challenge"
+  else
+    HOOK_SCRIPT="${CURRENT_DIR}/hooks/letsencrypt_drupal_hooks.sh"
+    logline "Using Drupal hook for http-01 challenge"
+  fi
+
   # Generate config and create empty domains.txt
   echo 'CA="letsencrypt"' > ${FILE_BASECONFIG}
-  echo 'CHALLENGETYPE="http-01"' >> ${FILE_BASECONFIG}
+  echo 'CHALLENGETYPE="'${CHALLENGE_TYPE}'"' >> ${FILE_BASECONFIG}
   echo 'WELLKNOWN="'${TMP_DIR}/wellknown'"' >> ${FILE_BASECONFIG}
   echo 'BASEDIR="'${CERT_DIR}'"' >> ${FILE_BASECONFIG}
-  echo 'HOOK="'${CURRENT_DIR}'/hooks/letsencrypt_drupal_hooks.sh"' >> ${FILE_BASECONFIG}
+  echo 'HOOK="'${HOOK_SCRIPT}'"' >> ${FILE_BASECONFIG}
   echo 'DOMAINS_TXT="'${FILE_DOMAINSTXT}'"' >> ${FILE_BASECONFIG}
   echo 'HOOK_CHAIN="no"' >> ${FILE_BASECONFIG}
   echo 'CONFIG_D="'${DIRECTORY_DEHYDRATED_CONFIG}'"' >> ${FILE_BASECONFIG}
