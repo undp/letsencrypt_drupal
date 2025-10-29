@@ -6,18 +6,24 @@ Wrapper script for https://github.com/dehydrated-io/dehydrated opinionated towar
 
 ## Challenge Types
 
-This script supports two challenge types for Let's Encrypt certificate validation:
+This script automatically selects the appropriate challenge type based on the domains in your configuration:
 
-### http-01 (Default)
-Let's Encrypt challenge is published through Drupal using Drush. There is no need to alter webserver settings or upload files.
+### http-01 (Automatic for Subdomains)
+Used automatically for subdomain certificates (e.g., `www.example.com`, `api.example.com`).
+* Let's Encrypt challenge is published through Drupal using Drush
 * Requires: https://www.drupal.org/project/letsencrypt_challenge module on target site
-* Usage: `./letsencrypt_drupal.sh "projectname" "prod"`
+* No web server configuration changes needed
 
-### dns-01
+### dns-01 (Automatic for Apex/Wildcard Domains)
+Used automatically when your domains file contains:
+* **Apex domains**: `example.com`
+* **Wildcard domains**: `*.example.com`
+
 Let's Encrypt challenge is published via DNS TXT records on Azure DNS using REST API.
 * Requires: Azure DNS zone and Service Principal with DNS Zone Contributor permissions
-* Usage: `./letsencrypt_drupal.sh "projectname" "prod" "dns-01"`
-* Benefits: Works with wildcard certificates, no web server access needed
+* Benefits: Supports wildcard certificates, no web server access needed, works behind firewalls
+
+**Challenge type is determined automatically** - the script analyzes your domains file and selects the appropriate validation method.
 
 ## What it does
 
@@ -97,7 +103,7 @@ These steps are for `prod` environment of PROJECT on Acquia Cloud. Can be easily
     * `secrets.settings.php`
       * Should *not* be committed in project repository.
       * Should be placed on Acquia server here: `/mnt/files/undp.01live/secrets.settings.php`
-  * Add https://www.drupal.org/project/letsencrypt_challenge module (for http-01 challenge only).
+  * Add https://www.drupal.org/project/letsencrypt_challenge module (for http-01 challenge, used with subdomain certificates).
     * `composer require drupal/letsencrypt_challenge`
   * Commit and deploy to production.
 * In Acquia UI add the Scheduled task
@@ -107,15 +113,15 @@ These steps are for `prod` environment of PROJECT on Acquia Cloud. Can be easily
     * You should have 60 days of time (with default settings) even if something fails or new manual certificate upload is needed.
   * New job:
     * Job name: `LE renew cert` (just a default, feel free change it)
-    * Command (http-01): `/home/undp/letsencrypt_drupal/letsencrypt_drupal.sh undp 01live &>> /var/log/sites/${AH_SITE_NAME}/logs/$(hostname -s)/letsencrypt_drupal.log`
-    * Command (dns-01): `/home/undp/letsencrypt_drupal/letsencrypt_drupal.sh undp 01live dns-01 &>> /var/log/sites/${AH_SITE_NAME}/logs/$(hostname -s)/letsencrypt_drupal.log`
+    * Command: `/home/undp/letsencrypt_drupal/letsencrypt_drupal.sh undp 01live &>> /var/log/sites/${AH_SITE_NAME}/logs/$(hostname -s)/letsencrypt_drupal.log`
+    * Note: Challenge type (http-01 or dns-01) is automatically detected based on your domains file
     * Command frequency `0 7 * * 1` ( https://crontab.guru/#0_7_*_*_1 )
   * It's good idea to run the command on Acquia manually first time to check if all is OK.
 * First script run will post results/instructions to Slack/Teams.
 
 ## Azure DNS Configuration (for dns-01 challenge)
 
-To use dns-01 challenge with Azure DNS, you need to:
+The script automatically uses dns-01 challenge when it detects apex domains (`example.com`) or wildcard domains (`*.example.com`) in your domains file. To enable this functionality, you need to configure Azure DNS:
 
 ### 1. Create Azure Service Principal
 

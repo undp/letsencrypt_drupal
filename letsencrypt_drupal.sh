@@ -2,20 +2,15 @@
 
 # Example call with logging:
 # ./letsencrypt_drupal.sh "projectname" "prod" &>> /var/log/sites/${AH_SITE_NAME}/logs/$(hostname -s)/letsencrypt_drupal.log
-# With dns-01 challenge:
-# ./letsencrypt_drupal.sh "projectname" "prod" "dns-01" &>> /var/log/sites/${AH_SITE_NAME}/logs/$(hostname -s)/letsencrypt_drupal.log
 
 # Params
 #-----------------------------------
 # * Project name
 # * Target environment
-# * Challenge type (optional, defaults to "http-01", can be "dns-01")
-
 
 # We need to export basic arguments so hooks/letsencrypt_drupal_hooks.sh can use them.
 export PROJECT="$1"
 export ENVIRONMENT="$2"
-export CHALLENGE_TYPE="${3:-http-01}"
 
 # Functions.sh adds some useful functions and propagates lots of variables.
 CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
@@ -89,7 +84,38 @@ main() {
   mkdir -p ${TMP_DIR}/wellknown
   mkdir -p ${CERT_DIR}
 
-  # Log the challenge type being used
+  # Determine challenge type based on domain types
+  # dns-01: apex domains (example.com) and wildcard domains (*.example.com)
+  # http-01: subdomains (www.example.com, api.example.com, etc.)
+  local CHALLENGE_TYPE="http-01"
+  
+  if [ -f "${FILE_DOMAINSTXT}" ]; then
+    # Read domains from the file
+    local domains=$(cat "${FILE_DOMAINSTXT}")
+    
+    # Check if any domain is a wildcard (starts with *.) or is an apex domain (no subdomain)
+    for domain in $domains; do
+      # Check for wildcard domain
+      if [[ "$domain" == \*.* ]]; then
+        CHALLENGE_TYPE="dns-01"
+        logline "Detected wildcard domain: ${domain} - using dns-01 challenge"
+        break
+      fi
+      
+      # Check for apex domain (only two parts: domain.tld)
+      # Count dots in domain name
+      local dot_count=$(echo "$domain" | tr -cd '.' | wc -c)
+      if [ "$dot_count" -eq 1 ]; then
+        CHALLENGE_TYPE="dns-01"
+        logline "Detected apex domain: ${domain} - using dns-01 challenge"
+        break
+      fi
+    done
+  else
+    logline "Warning: Domains file not found: ${FILE_DOMAINSTXT}"
+  fi
+  
+  export CHALLENGE_TYPE
   logline "Using challenge type: ${CHALLENGE_TYPE}"
 
   # Determine which hook to use based on challenge type

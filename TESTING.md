@@ -1,10 +1,21 @@
-# Testing Guide for dns-01 Challenge Support
+# Testing Guide for Automatic Challenge Type Selection
 
-This guide explains how to test the dns-01 challenge support added to letsencrypt_drupal.
+This guide explains how to test the automatic challenge type detection in letsencrypt_drupal.
+
+## How Challenge Type is Determined
+
+The script automatically selects the challenge type based on your domains file:
+
+- **dns-01 challenge**: Used when the domains file contains:
+  - Apex domains (e.g., `example.com`)
+  - Wildcard domains (e.g., `*.example.com`)
+  
+- **http-01 challenge**: Used for all other cases:
+  - Subdomains only (e.g., `www.example.com`, `api.example.com`)
 
 ## Prerequisites for dns-01 Testing
 
-Before testing dns-01 challenge support, ensure you have:
+Before testing with apex or wildcard domains, ensure you have:
 
 1. **Azure DNS Zone** configured with your domain
 2. **Azure Service Principal** with DNS Zone Contributor permissions
@@ -16,48 +27,85 @@ Before testing dns-01 challenge support, ensure you have:
    - `AZURE_RESOURCE_GROUP`
    - `AZURE_DNS_ZONE`
 
-## Testing Default Behavior (http-01)
+## Testing Automatic Detection
 
-The default behavior should remain unchanged - using http-01 challenge:
+### Test Case 1: Subdomains Only (http-01)
 
+Create a domains file with only subdomains:
+```
+www.example.com api.example.com test.example.com
+```
+
+Run the script:
 ```bash
-# This should use http-01 challenge with Drupal hook
 ./letsencrypt_drupal.sh projectname environment
 ```
 
 Expected behavior:
+- Automatically detects subdomains
 - Uses `hooks/letsencrypt_drupal_hooks.sh`
 - Challenge type: `http-01`
 - Publishes challenges via Drupal module
 
-## Testing dns-01 Challenge
+### Test Case 2: Apex Domain (dns-01)
 
-To test dns-01 challenge with Azure DNS:
+Create a domains file with an apex domain:
+```
+example.com www.example.com
+```
 
+Run the script:
 ```bash
-# This should use dns-01 challenge with Azure DNS hook
-./letsencrypt_drupal.sh projectname environment dns-01
+./letsencrypt_drupal.sh projectname environment
 ```
 
 Expected behavior:
+- Automatically detects apex domain `example.com`
 - Uses `hooks/azure_dns_hook.sh`
 - Challenge type: `dns-01`
 - Creates TXT records in Azure DNS
 - Waits 60 seconds for DNS propagation
 - Cleans up TXT records after validation
 
+### Test Case 3: Wildcard Domain (dns-01)
+
+Create a domains file with a wildcard domain:
+```
+*.example.com www.example.com
+```
+
+Run the script:
+```bash
+./letsencrypt_drupal.sh projectname environment
+```
+
+Expected behavior:
+- Automatically detects wildcard domain `*.example.com`
+- Uses `hooks/azure_dns_hook.sh`
+- Challenge type: `dns-01`
+- Creates TXT records in Azure DNS
+
 ## Manual Verification Steps
 
 ### 1. Check Log Output
 
-Look for these log messages:
+Look for domain detection messages:
 
 ```
+Detected apex domain: example.com - using dns-01 challenge
 Using challenge type: dns-01
 Using Azure DNS hook for dns-01 challenge
 ```
 
-or for http-01:
+or for wildcard:
+
+```
+Detected wildcard domain: *.example.com - using dns-01 challenge
+Using challenge type: dns-01
+Using Azure DNS hook for dns-01 challenge
+```
+
+or for subdomains only:
 
 ```
 Using challenge type: http-01
