@@ -17,21 +17,18 @@ CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # Azure REST API version
 API_VERSION="2018-05-01"
-AUTH_API_VERSION="2022-12-01"
 
 # Function to get Azure access token
 get_azure_token() {
     local token_endpoint="https://login.microsoftonline.com/${AZURE_TENANT_ID}/oauth2/v2.0/token"
     local response
     
-    response=$(curl -s -X POST "$token_endpoint" \
+    if ! response=$(curl -s -X POST "$token_endpoint" \
         -H "Content-Type: application/x-www-form-urlencoded" \
         -d "client_id=${AZURE_CLIENT_ID}" \
         -d "client_secret=${AZURE_CLIENT_SECRET}" \
         -d "scope=https://management.azure.com/.default" \
-        -d "grant_type=client_credentials")
-    
-    if [ $? -ne 0 ]; then
+        -d "grant_type=client_credentials"); then
         logline "Error: Failed to get Azure access token"
         return 1
     fi
@@ -48,7 +45,7 @@ get_record_name() {
     local zone="$2"
     
     # Remove the zone from the end of the domain
-    local record_name="${full_domain%.${zone}}"
+    local record_name="${full_domain%."${zone}"}"
     
     # If the domain equals the zone, we're at the root
     if [ "$full_domain" = "$zone" ]; then
@@ -60,6 +57,9 @@ get_record_name() {
 
 deploy_challenge() {
     local DOMAIN="${1}" TOKEN_FILENAME="${2}" TOKEN_VALUE="${3}"
+    
+    # Avoid unused variable warning - TOKEN_FILENAME is provided by dehydrated but not used in DNS challenge
+    _="${TOKEN_FILENAME}"
     
     logline "Deploying DNS challenge for ${DOMAIN}"
     
@@ -83,7 +83,8 @@ deploy_challenge() {
     # Construct the record name
     local record_name="_acme-challenge"
     if [ "$DOMAIN" != "$AZURE_DNS_ZONE" ]; then
-        local subdomain=$(get_record_name "$DOMAIN" "$AZURE_DNS_ZONE")
+        local subdomain
+        subdomain=$(get_record_name "$DOMAIN" "$AZURE_DNS_ZONE")
         record_name="_acme-challenge.${subdomain}"
     fi
     
@@ -91,7 +92,8 @@ deploy_challenge() {
     local api_url="https://management.azure.com/subscriptions/${AZURE_SUBSCRIPTION_ID}/resourceGroups/${AZURE_RESOURCE_GROUP}/providers/Microsoft.Network/dnsZones/${AZURE_DNS_ZONE}/TXT/${record_name}?api-version=${API_VERSION}"
     
     # Create TXT record JSON payload
-    local json_payload=$(cat <<EOF
+    local json_payload
+    json_payload=$(cat <<EOF
 {
   "properties": {
     "TTL": 60,
@@ -107,12 +109,10 @@ EOF
     
     # Create or update TXT record
     local response
-    response=$(curl -s -X PUT "$api_url" \
+    if ! response=$(curl -s -X PUT "$api_url" \
         -H "Authorization: Bearer ${access_token}" \
         -H "Content-Type: application/json" \
-        -d "$json_payload")
-    
-    if [ $? -ne 0 ]; then
+        -d "$json_payload"); then
         logline "Error: Failed to create TXT record for ${DOMAIN}"
         logline "Response: ${response}"
         exit 1
@@ -125,6 +125,10 @@ EOF
 
 clean_challenge() {
     local DOMAIN="${1}" TOKEN_FILENAME="${2}" TOKEN_VALUE="${3}"
+    
+    # Avoid unused variable warnings - these are provided by dehydrated but not used here
+    _="${TOKEN_FILENAME}"
+    _="${TOKEN_VALUE}"
     
     logline "Cleaning DNS challenge for ${DOMAIN}"
     
@@ -139,7 +143,8 @@ clean_challenge() {
     # Construct the record name
     local record_name="_acme-challenge"
     if [ "$DOMAIN" != "$AZURE_DNS_ZONE" ]; then
-        local subdomain=$(get_record_name "$DOMAIN" "$AZURE_DNS_ZONE")
+        local subdomain
+        subdomain=$(get_record_name "$DOMAIN" "$AZURE_DNS_ZONE")
         record_name="_acme-challenge.${subdomain}"
     fi
     
@@ -148,10 +153,8 @@ clean_challenge() {
     
     # Delete TXT record
     local response
-    response=$(curl -s -X DELETE "$api_url" \
-        -H "Authorization: Bearer ${access_token}")
-    
-    if [ $? -eq 0 ]; then
+    if response=$(curl -s -X DELETE "$api_url" \
+        -H "Authorization: Bearer ${access_token}"); then
         logline "Successfully deleted TXT record ${record_name} for ${DOMAIN}"
     else
         logline "Warning: Failed to delete TXT record for ${DOMAIN}"
@@ -162,6 +165,9 @@ clean_challenge() {
 deploy_cert() {
     local DOMAIN="${1}" KEYFILE="${2}" CERTFILE="${3}" FULLCHAINFILE="${4}" CHAINFILE="${5}" TIMESTAMP="${6}"
     
+    # Avoid unused variable warning - CERTFILE is provided by dehydrated but not used here
+    _="${CERTFILE}"
+    
     slackpost "${PROJECT_ROOT}" "good" "SSL bot ${DRUSH_ALIAS}" "Starting deployment of new certificate for ${DOMAIN} (dns-01 challenge)."
     
     # Should deployment be attempted?
@@ -170,21 +176,27 @@ deploy_cert() {
         slackpost "${PROJECT_ROOT}" "warning" "SSL bot ${DRUSH_ALIAS}" "*New certificate for ${DOMAIN} was generated.* This instance of undp/letsencrypt_drupal *is not set up to deploy certificate* automatically. The certificate needs to be uploaded to Acquia manually*.\n\nSSH to \`drush ${DRUSH_ALIAS} ssh\` to read files.\nLogin to Acquia and open target environment. Open SSL tab on the left side. Click Install SSL certificate.\n\nText fields:\nSSL certificate: \`cat ${FULLCHAINFILE}\`\nSSL private key: \`cat ${KEYFILE}\`\nCA intermediate certificates: \`cat ${CHAINFILE}\`"
     else
         # Run certificate deployment.
-        RESULT=$(php $CURRENT_DIR/../acquia_cloud_cert_deployment/cert_deploy.php "${CERT_DEPLOY_ENVIRONMENT_UUID}" "${KEYFILE}" "${FULLCHAINFILE}" "${CHAINFILE}" "${TIMESTAMP}" --activate --label-prefix "letsencrypt_drupal" 2>&1)
-        if [ $? -eq 0 ]; then
+        local cert_deploy_result
+        if cert_deploy_result=$(php "$CURRENT_DIR"/../acquia_cloud_cert_deployment/cert_deploy.php "${CERT_DEPLOY_ENVIRONMENT_UUID}" "${KEYFILE}" "${FULLCHAINFILE}" "${CHAINFILE}" "${TIMESTAMP}" --activate --label-prefix "letsencrypt_drupal" 2>&1); then
             # Send successful result to slack.
-            slackpost "${PROJECT_ROOT}" "good" "SSL bot ${DRUSH_ALIAS}" "SSL certificate deployment successful. \`\`\`${RESULT}\`\`\`"
+            slackpost "${PROJECT_ROOT}" "good" "SSL bot ${DRUSH_ALIAS}" "SSL certificate deployment successful. \`\`\`${cert_deploy_result}\`\`\`"
         else
             # Send failure notification to slack.
-            slackpost "${PROJECT_ROOT}" "danger" "SSL bot ${DRUSH_ALIAS}" "*SSL certificate deployment failure.* Manual review/fix required! \`\`\`${RESULT}\`\`\`\n\nNew certificate for ${DOMAIN} *was generated and needs to be uploaded to Acquia manually*.\n\nSSH to \`drush ${DRUSH_ALIAS} ssh\` to read files.\nLogin to Acquia and open target environment. Open SSL tab on the left side. Click Install SSL certificate.\n\nText fields:\nSSL certificate: \`cat ${FULLCHAINFILE}\`\nSSL private key: \`cat ${KEYFILE}\`\nCA intermediate certificates: \`cat ${CHAINFILE}\`"
+            slackpost "${PROJECT_ROOT}" "danger" "SSL bot ${DRUSH_ALIAS}" "*SSL certificate deployment failure.* Manual review/fix required! \`\`\`${cert_deploy_result}\`\`\`\n\nNew certificate for ${DOMAIN} *was generated and needs to be uploaded to Acquia manually*.\n\nSSH to \`drush ${DRUSH_ALIAS} ssh\` to read files.\nLogin to Acquia and open target environment. Open SSL tab on the left side. Click Install SSL certificate.\n\nText fields:\nSSL certificate: \`cat ${FULLCHAINFILE}\`\nSSL private key: \`cat ${KEYFILE}\`\nCA intermediate certificates: \`cat ${CHAINFILE}\`"
         fi
         # Output for logging.
-        echo "${RESULT}"
+        echo "${cert_deploy_result}"
     fi
 }
 
 unchanged_cert() {
     local DOMAIN="${1}" KEYFILE="${2}" CERTFILE="${3}" FULLCHAINFILE="${4}" CHAINFILE="${5}"
+    
+    # Avoid unused variable warnings - these are provided by dehydrated but not all are used here
+    _="${KEYFILE}"
+    _="${CERTFILE}"
+    _="${FULLCHAINFILE}"
+    _="${CHAINFILE}"
     
     slackpost "${PROJECT_ROOT}" "good" "SSL bot ${DRUSH_ALIAS}" "Certificate for ${DOMAIN} is still valid and therefore wasn't reissued. All good."
 }
@@ -197,6 +209,9 @@ invalid_challenge() {
 
 request_failure() {
     local STATUSCODE="${1}" REASON="${2}" REQTYPE="${3}"
+    
+    # Avoid unused variable warning - REQTYPE is provided by dehydrated but not used here
+    _="${REQTYPE}"
     
     slackpost "${PROJECT_ROOT}" "danger" "SSL bot ${DRUSH_ALIAS}" "Request_failure: HTTP request has failed with status code: ${STATUSCODE} and reason: ${REASON}. Manual fix required!"
 }
